@@ -360,7 +360,8 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
         downloadPath: config.downloadPath,
         maxFileSize: config.maxVideoFileSize,
         ytDlpCookiesFile: config.ytDlpCookiesFile,
-        ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser
+        ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser,
+        ytDlpExtractorArgs: config.ytDlpExtractorArgs
       });
 
       outputFile = downloadResult.filePath;
@@ -386,7 +387,8 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
       downloadPath: config.downloadPath,
       maxFileSize: config.maxAudioFileSize,
       ytDlpCookiesFile: config.ytDlpCookiesFile,
-      ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser
+      ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser,
+      ytDlpExtractorArgs: config.ytDlpExtractorArgs
     });
 
     outputFile = downloadResult.filePath;

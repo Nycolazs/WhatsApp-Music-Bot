@@ -36,5 +36,6 @@ module.exports = {
   maxPlaylistItems: toPositiveNumber(process.env.MAX_PLAYLIST_ITEMS, 10),
   selectionTimeoutSeconds: toPositiveNumber(process.env.SELECTION_TIMEOUT_SECONDS, 120),
   ytDlpCookiesFile: toAbsolutePath(process.env.YTDLP_COOKIES_FILE, null),
-  ytDlpCookiesFromBrowser: String(process.env.YTDLP_COOKIES_FROM_BROWSER || '').trim()
+  ytDlpCookiesFromBrowser: String(process.env.YTDLP_COOKIES_FROM_BROWSER || '').trim(),
+  ytDlpExtractorArgs: String(process.env.YTDLP_EXTRACTOR_ARGS || '').trim()
 };

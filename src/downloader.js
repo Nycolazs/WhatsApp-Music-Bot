@@ -101,8 +101,11 @@ function runYtDlp(args) {
 function buildYtDlpAuthArgs(options = {}) {
   const {
     ytDlpCookiesFile,
-    ytDlpCookiesFromBrowser
+    ytDlpCookiesFromBrowser,
+    ytDlpExtractorArgs
   } = options;
+
+  const args = [];
 
   if (ytDlpCookiesFile) {
     if (!readableFileExists(ytDlpCookiesFile)) {
@@ -112,14 +115,17 @@ function buildYtDlpAuthArgs(options = {}) {
       );
     }
 
-    return ['--cookies', ytDlpCookiesFile];
+    args.push('--cookies', ytDlpCookiesFile);
+  }
+  else if (ytDlpCookiesFromBrowser) {
+    args.push('--cookies-from-browser', ytDlpCookiesFromBrowser);
   }
 
-  if (ytDlpCookiesFromBrowser) {
-    return ['--cookies-from-browser', ytDlpCookiesFromBrowser];
+  if (ytDlpExtractorArgs) {
+    args.push('--extractor-args', ytDlpExtractorArgs);
   }
 
-  return [];
+  return args;
 }
 
 function isYtDlpAuthError(stderr) {
@@ -305,7 +311,8 @@ async function downloadWithArgs(video, options) {
     outputLabel,
     skipSizeValidation = false,
     ytDlpCookiesFile,
-    ytDlpCookiesFromBrowser
+    ytDlpCookiesFromBrowser,
+    ytDlpExtractorArgs
   } = options;
 
   await ensureDirectory(downloadPath);
@@ -315,7 +322,8 @@ async function downloadWithArgs(video, options) {
   const ffmpegLocation = detectFfmpegLocation();
   const ytDlpAuthArgs = buildYtDlpAuthArgs({
     ytDlpCookiesFile,
-    ytDlpCookiesFromBrowser
+    ytDlpCookiesFromBrowser,
+    ytDlpExtractorArgs
   });
 
   const args = argsBuilder({

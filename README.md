@@ -74,6 +74,7 @@ npm install
 - `SELECTION_TIMEOUT_SECONDS`: tempo maximo para o usuario escolher uma opcao (padrao: `120`).
 - `YTDLP_COOKIES_FILE` (opcional): caminho de `cookies.txt` para evitar bloqueio anti-bot do YouTube.
 - `YTDLP_COOKIES_FROM_BROWSER` (opcional): usa cookies direto do browser (`chrome`, `firefox`, etc).
+- `YTDLP_EXTRACTOR_ARGS` (opcional): argumentos extras do yt-dlp (ex: `youtube:player_client=android`).
 
 ## Executar localmente
 
@@ -153,6 +154,8 @@ Se o YouTube bloquear a VPS, configure cookies:
 
 ```bash
 YTDLP_COOKIES_FILE=/home/ubuntu/WhatsApp-Music-Bot/cookies.txt
+# opcional para VPS bloqueada:
+YTDLP_EXTRACTOR_ARGS=youtube:player_client=android
 ```
 
 4. Reinicie o bot (`pm2 restart whatsapp-music-bot --update-env`).
