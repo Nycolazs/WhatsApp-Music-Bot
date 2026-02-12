@@ -44,6 +44,20 @@ function extractText(message) {
   return '';
 }
 
+function extractQuotedText(message) {
+  const contextInfo =
+    message?.extendedTextMessage?.contextInfo ||
+    message?.imageMessage?.contextInfo ||
+    message?.videoMessage?.contextInfo;
+
+  const quotedMessage = contextInfo?.quotedMessage;
+  if (!quotedMessage) {
+    return '';
+  }
+
+  return extractText(quotedMessage).trim();
+}
+
 async function sendText(socket, chatId, text, quotedMessage) {
   await socket.sendMessage(chatId, { text }, { quoted: quotedMessage });
 }
@@ -168,11 +182,14 @@ async function startWhatsApp({ sessionPath, onTextMessage }) {
           continue;
         }
 
+        const quotedText = extractQuotedText(item.message);
+
         try {
           await onTextMessage({
             chatId,
             message: item,
             text,
+            quotedText,
             replyText: async (responseText) => {
               if (!currentSocket) {
                 throw new Error('WHATSAPP_NOT_CONNECTED');

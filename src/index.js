@@ -21,6 +21,14 @@ const pendingSelections = new Map();
 const MEDIA_AUDIO = 'audio';
 const MEDIA_VIDEO = 'video';
 
+function bold(text) {
+  return `*${text}*`;
+}
+
+function mono(text) {
+  return `\`${text}\``;
+}
+
 function getMaxSearchDuration() {
   return Math.max(config.maxAudioDuration, config.maxVideoDuration);
 }
@@ -31,36 +39,36 @@ function getDefaultMediaLabel(mediaType) {
 
 function buildHelpText() {
   return [
-    'COMO USAR O BOT',
+    `${bold('Music Bot - Guia Rapido')}`,
     '',
-    '1) BUSCAR',
-    'Use /play <nome ou URL> para buscar musica/video.',
-    'Use /video <nome ou URL> para priorizar video 720p.',
+    `${bold('1) Buscar')}`,
+    `${mono('/play <nome|url>')} - prioriza audio MP3`,
+    `${mono('/video <nome|url>')} - prioriza video 720p`,
+    `${mono('/cancel')} - cancela selecao pendente`,
+    `${mono('/help')} - mostra este guia`,
     '',
-    '2) ESCOLHER A OPCAO',
-    'Depois da busca, responda com:',
-    '1  -> usa o formato padrao do comando',
-    'a1 -> baixa audio MP3 da opcao 1',
-    'v1 -> baixa video 720p da opcao 1',
+    `${bold('2) Escolher Opcao')}`,
+    `${mono('1')} usa formato padrao do comando`,
+    `${mono('a1')} forca audio MP3`,
+    `${mono('v1')} forca video 720p`,
     '',
-    '3) PLAYLIST',
-    'Se voce selecionar uma playlist, o bot mostra as faixas.',
-    'Depois e so responder novamente com 1, a1, v1...',
+    `${bold('3) Playlist')}`,
+    'Ao selecionar playlist, o bot lista as faixas.',
+    `Escolha novamente com ${mono('1')}, ${mono('a1')} ou ${mono('v1')}.`,
     '',
-    '4) COMANDOS',
-    '/play <nome/url>',
-    '/video <nome/url>',
-    '/cancel  (cancela selecao pendente)',
-    '/help',
+    `${bold('4) Usar Quote (responder mensagem)')}`,
+    `Responda uma mensagem com ${mono('/play')} ou ${mono('/video')} sem repetir texto.`,
+    'O bot usa automaticamente o conteudo da mensagem citada.',
     '',
-    'EXEMPLOS',
-    '/play linkin park numb',
-    '/video imagine dragons believer',
-    '/play https://www.youtube.com/watch?v=...',
-    '/play https://www.youtube.com/playlist?list=...',
+    `${bold('Exemplos')}`,
+    mono('/play linkin park numb'),
+    mono('/video imagine dragons believer'),
+    mono('/play https://www.youtube.com/watch?v=...'),
+    mono('/play https://www.youtube.com/playlist?list=...'),
     '',
-    `Limite de audio: ${formatSeconds(config.maxAudioDuration)}.`,
-    `Limite de video: ${formatSeconds(config.maxVideoDuration)} (720p).`
+    `${bold('Limites')}`,
+    `Audio: ${formatSeconds(config.maxAudioDuration)}`,
+    `Video: ${formatSeconds(config.maxVideoDuration)} (720p)`
   ].join('\n');
 }
 
@@ -275,17 +283,17 @@ function formatSearchOptionLine(option, index) {
 
 function buildSelectionInstructions(defaultMediaType) {
   return [
-    'Responda com o numero da opcao desejada.',
-    'Use "a+numero" para audio MP3 (ex: a1).',
-    'Use "v+numero" para video 720p (ex: v1).',
-    `Se enviar apenas numero, o padrao sera ${getDefaultMediaLabel(defaultMediaType)}.`,
-    `A selecao expira em ${config.selectionTimeoutSeconds}s.`,
-    'Use /cancel para cancelar.'
+    `${bold('Selecao')}: responda com o numero da opcao.`,
+    `${mono('a+numero')} para audio MP3 (ex: ${mono('a1')})`,
+    `${mono('v+numero')} para video 720p (ex: ${mono('v1')})`,
+    `Somente numero usa o padrao: ${getDefaultMediaLabel(defaultMediaType)}.`,
+    `Tempo limite: ${config.selectionTimeoutSeconds}s.`,
+    `${mono('/cancel')} para cancelar.`
   ];
 }
 
 function buildSearchOptionsText(query, options, defaultMediaType) {
-  const lines = [`🔎 Resultados para: "${query}"`, ''];
+  const lines = [`🔎 ${bold('Resultados')}`, `${bold('Busca')}: ${query}`, ''];
 
   options.forEach((option, index) => {
     lines.push(formatSearchOptionLine(option, index + 1));
@@ -299,8 +307,8 @@ function buildSearchOptionsText(query, options, defaultMediaType) {
 
 function buildPlaylistOptionsText(playlist, options, defaultMediaType) {
   const lines = [
-    `📚 Playlist: ${playlist.title}`,
-    `Canal: ${playlist.author}`,
+    `📚 ${bold('Playlist')}: ${playlist.title}`,
+    `${bold('Canal')}: ${playlist.author}`,
     ''
   ];
 
@@ -326,7 +334,7 @@ async function enqueueMediaJob(context, video, mediaType) {
     })
   );
 
-  await context.replyText(`⏳ Pedido recebido. Posicao na fila: ${position}`);
+  await context.replyText(`⏳ ${bold('Pedido recebido')}\nPosicao na fila: ${position}`);
 
   promise.catch((error) => {
     console.error('Erro nao tratado no job da fila:', error);
@@ -338,7 +346,7 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
 
   try {
     if (mediaType === MEDIA_VIDEO) {
-      await replyText(`⬇️ Baixando video 720p: ${video.title} (${video.durationText})`);
+      await replyText(`⬇️ ${bold('Baixando video 720p')}\n${video.title} (${video.durationText})`);
 
       const downloadResult = await downloadVideo(video, {
         downloadPath: config.downloadPath,
@@ -358,11 +366,11 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
         throw sendError;
       }
 
-      await replyText('✅ Video enviado com sucesso.');
+      await replyText(`✅ ${bold('Video enviado com sucesso.')}`);
       return;
     }
 
-    await replyText(`⬇️ Baixando audio: ${video.title} (${video.durationText})`);
+    await replyText(`⬇️ ${bold('Baixando audio')}\n${video.title} (${video.durationText})`);
 
     const downloadResult = await downloadAudio(video, {
       downloadPath: config.downloadPath,
@@ -382,7 +390,7 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
       throw sendError;
     }
 
-    await replyText('✅ Audio enviado com sucesso.');
+    await replyText(`✅ ${bold('Audio enviado com sucesso.')}`);
   } catch (error) {
     console.error('Erro no processamento da midia:', error);
     await replyText(`❌ ${mapPlayError(error)}`);
@@ -393,7 +401,7 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
 }
 
 async function showPlaylistTracks(context, playlistInput, defaultMediaType) {
-  await context.replyText('📚 Carregando itens da playlist...');
+  await context.replyText(`📚 ${bold('Carregando itens da playlist...')}`);
 
   const { playlist, videoOptions } = await getPlaylistOptions(playlistInput, {
     maxDurationSeconds: getMaxSearchDuration(),
@@ -414,7 +422,7 @@ async function handlePlayCommand(context, query, defaultMediaType) {
   clearPendingSelection(context.chatId);
 
   if (isLikelyUrl(query)) {
-    await context.replyText('🔎 Validando link...');
+    await context.replyText(`🔎 ${bold('Validando link...')}`);
 
     try {
       const video = await getVideoFromInput(query, getMaxSearchDuration());
@@ -431,7 +439,7 @@ async function handlePlayCommand(context, query, defaultMediaType) {
     }
   }
 
-  await context.replyText('🔎 Buscando opcoes no YouTube...');
+  await context.replyText(`🔎 ${bold('Buscando opcoes no YouTube...')}`);
 
   const options = await searchMediaOptions(query, {
     maxDurationSeconds: getMaxSearchDuration(),
@@ -455,7 +463,7 @@ async function handlePendingSelection(context, pending, selection) {
   const option = pending.options[index - 1];
 
   if (!option) {
-    await context.replyText(`Opcao invalida. Escolha um numero entre 1 e ${pending.options.length}.`);
+    await context.replyText(`⚠️ ${bold('Opcao invalida')}. Escolha um numero entre 1 e ${pending.options.length}.`);
     return;
   }
 
@@ -480,19 +488,19 @@ async function handlePendingSelection(context, pending, selection) {
 }
 
 async function handleIncomingCommand(context) {
-  const { chatId, text, replyText } = context;
+  const { chatId, text, replyText, quotedText } = context;
   const normalizedText = text.trim();
   const pending = getPendingSelection(chatId);
   const parsed = parseCommand(normalizedText);
 
   if (parsed.type === 'cancel') {
     if (!pending) {
-      await replyText('Nao existe selecao pendente para cancelar.');
+      await replyText(`ℹ️ ${bold('Nao existe selecao pendente para cancelar.')}`);
       return;
     }
 
     clearPendingSelection(chatId);
-    await replyText('❎ Selecao cancelada.');
+    await replyText(`❎ ${bold('Selecao cancelada.')}`);
     return;
   }
 
@@ -509,7 +517,7 @@ async function handleIncomingCommand(context) {
     }
 
     if (!normalizedText.startsWith('/')) {
-      await replyText('Envie numero, a+numero, v+numero ou /cancel.');
+      await replyText(`Envie ${mono('numero')}, ${mono('a+numero')}, ${mono('v+numero')} ou ${mono('/cancel')}.`);
       return;
     }
   }
@@ -524,15 +532,27 @@ async function handleIncomingCommand(context) {
   }
 
   if (parsed.type === 'unknown') {
-    await replyText('Comando invalido. Use /help para ver os comandos disponiveis.');
+    await replyText(`⚠️ ${bold('Comando invalido')}. Use ${mono('/help')} para ver os comandos disponiveis.`);
     return;
   }
 
   if (parsed.error === 'EMPTY_QUERY') {
+    const fallbackQuery = String(quotedText || '').trim();
+    if (fallbackQuery) {
+      const defaultMediaType = parsed.type === 'video' ? MEDIA_VIDEO : MEDIA_AUDIO;
+      try {
+        await handlePlayCommand(context, fallbackQuery, defaultMediaType);
+      } catch (error) {
+        console.error(`Erro no comando /${parsed.type} via quote:`, error);
+        await replyText(`❌ ${mapPlayError(error)}`);
+      }
+      return;
+    }
+
     const usage = parsed.type === 'video'
-      ? 'Uso correto: /video <nome, URL de video ou URL de playlist>'
-      : 'Uso correto: /play <nome, URL de video ou URL de playlist>';
-    await replyText(usage);
+      ? `${bold('Uso')}: ${mono('/video <nome, URL de video ou URL de playlist>')}`
+      : `${bold('Uso')}: ${mono('/play <nome, URL de video ou URL de playlist>')}`;
+    await replyText(`${usage}\nOu responda uma mensagem com ${mono('/play')} / ${mono('/video')}.`);
     return;
   }
 

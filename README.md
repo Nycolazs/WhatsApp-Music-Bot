@@ -114,6 +114,15 @@ pm2 save
    - `v1` para forcar video 720p.
 4. Se escolher playlist, o bot retorna as musicas da playlist para nova selecao.
 
+### Uso com quote (responder mensagem)
+
+Voce pode responder qualquer mensagem de texto com:
+
+- `/play`
+- `/video`
+
+Sem repetir o conteudo. O bot usa automaticamente o texto da mensagem citada como busca.
+
 ## Tratamento de erros implementado
 
 - URL invalida
