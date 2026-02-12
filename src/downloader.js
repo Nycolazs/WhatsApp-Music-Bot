@@ -1,0 +1,338 @@
+const fs = require('fs');
+const path = require('path');
+const { spawn, spawnSync } = require('child_process');
+const {
+  ensureDirectory,
+  safeRemoveByPrefix,
+  safeUnlink,
+  sanitizeFilename
+} = require('./utils');
+
+class DownloadError extends Error {
+  constructor(code, message, details = {}) {
+    super(message);
+    this.name = 'DownloadError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+function fileExists(filePath) {
+  try {
+    fs.accessSync(filePath, fs.constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function detectFfmpegLocation() {
+  if (process.env.FFMPEG_LOCATION) {
+    return process.env.FFMPEG_LOCATION;
+  }
+
+  const whichResult = spawnSync('which', ['ffmpeg'], { encoding: 'utf8' });
+  if (whichResult.status === 0) {
+    const ffmpegPath = (whichResult.stdout || '').trim();
+    if (ffmpegPath) {
+      const candidateDir = path.dirname(ffmpegPath);
+      if (
+        fileExists(path.join(candidateDir, 'ffmpeg')) &&
+        fileExists(path.join(candidateDir, 'ffprobe'))
+      ) {
+        return candidateDir;
+      }
+    }
+  }
+
+  const commonDirs = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin'];
+  for (const candidateDir of commonDirs) {
+    if (
+      fileExists(path.join(candidateDir, 'ffmpeg')) &&
+      fileExists(path.join(candidateDir, 'ffprobe'))
+    ) {
+      return candidateDir;
+    }
+  }
+
+  return null;
+}
+
+function runYtDlp(args) {
+  const envPath = `${['/opt/homebrew/bin', '/usr/local/bin', process.env.PATH || ''].join(':')}`;
+
+  return new Promise((resolve, reject) => {
+    const child = spawn('yt-dlp', args, {
+      env: {
+        ...process.env,
+        PATH: envPath
+      }
+    });
+    let stderr = '';
+
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on('error', (error) => {
+      if (error.code === 'ENOENT') {
+        reject(new DownloadError('YTDLP_NOT_FOUND', 'yt-dlp nao encontrado no sistema.'));
+        return;
+      }
+
+      reject(new DownloadError('YTDLP_ERROR', 'Falha ao iniciar o yt-dlp.', { originalError: error }));
+    });
+
+    child.on('close', (code) => {
+      resolve({ code, stderr });
+    });
+  });
+}
+
+function runFfmpeg(inputPath, outputPath, ffmpegLocation) {
+  const envPath = `${['/opt/homebrew/bin', '/usr/local/bin', process.env.PATH || ''].join(':')}`;
+  const ffmpegBinary = ffmpegLocation ? path.join(ffmpegLocation, 'ffmpeg') : 'ffmpeg';
+  const args = [
+    '-y',
+    '-i',
+    inputPath,
+    '-vf',
+    'scale=1280:720:force_original_aspect_ratio=decrease,format=yuv420p',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'veryfast',
+    '-crf',
+    '23',
+    '-profile:v',
+    'main',
+    '-level',
+    '3.1',
+    '-movflags',
+    '+faststart',
+    '-c:a',
+    'aac',
+    '-b:a',
+    '128k',
+    '-ar',
+    '44100',
+    '-ac',
+    '2',
+    outputPath
+  ];
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(ffmpegBinary, args, {
+      env: {
+        ...process.env,
+        PATH: envPath
+      }
+    });
+    let stderr = '';
+
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on('error', (error) => {
+      if (error.code === 'ENOENT') {
+        reject(new DownloadError('FFMPEG_NOT_FOUND', 'ffmpeg nao encontrado no sistema.'));
+        return;
+      }
+
+      reject(new DownloadError('FFMPEG_ERROR', 'Falha ao iniciar o ffmpeg.', {
+        originalError: error
+      }));
+    });
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new DownloadError('FFMPEG_ERROR', 'Falha na conversao de video para formato compativel.', {
+          code,
+          stderr
+        }));
+        return;
+      }
+
+      resolve();
+    });
+  });
+}
+
+async function resolveOutputPath(downloadPath, baseName, extensions, label) {
+  for (const extension of extensions) {
+    const expectedPath = path.join(downloadPath, `${baseName}.${extension}`);
+
+    try {
+      await fs.promises.access(expectedPath, fs.constants.F_OK);
+      return expectedPath;
+    } catch {
+      // tenta fallback por prefixo abaixo.
+    }
+  }
+
+  const files = await fs.promises.readdir(downloadPath);
+  const match = files.find((fileName) => {
+    return (
+      fileName.startsWith(baseName) &&
+      extensions.some((extension) => fileName.toLowerCase().endsWith(`.${extension}`))
+    );
+  });
+
+  if (!match) {
+    throw new DownloadError('OUTPUT_NOT_FOUND', `${label} final nao foi gerado.`);
+  }
+
+  return path.join(downloadPath, match);
+}
+
+function buildAudioArgs({ outputTemplate, mediaUrl, ffmpegLocation }) {
+  const args = [
+    '--no-playlist',
+    '-f',
+    'bestaudio/best',
+    '-x',
+    '--audio-format',
+    'mp3',
+    '--audio-quality',
+    '0'
+  ];
+
+  if (ffmpegLocation) {
+    args.push('--ffmpeg-location', ffmpegLocation);
+  }
+
+  args.push(
+    '--no-progress',
+    '--newline',
+    '-o',
+    outputTemplate,
+    mediaUrl
+  );
+
+  return args;
+}
+
+function buildVideoArgs({ outputTemplate, mediaUrl, ffmpegLocation }) {
+  const args = [
+    '--no-playlist',
+    '-f',
+    'bestvideo[height<=720]+bestaudio/best[height<=720]',
+    '--merge-output-format',
+    'mp4',
+    '--recode-video',
+    'mp4'
+  ];
+
+  if (ffmpegLocation) {
+    args.push('--ffmpeg-location', ffmpegLocation);
+  }
+
+  args.push(
+    '--no-progress',
+    '--newline',
+    '-o',
+    outputTemplate,
+    mediaUrl
+  );
+
+  return args;
+}
+
+async function downloadWithArgs(video, options) {
+  const {
+    downloadPath,
+    maxFileSize,
+    argsBuilder,
+    outputExtensions,
+    outputLabel,
+    skipSizeValidation = false
+  } = options;
+
+  await ensureDirectory(downloadPath);
+
+  const baseName = `${sanitizeFilename(video.title, 60)}-${Date.now()}`;
+  const outputTemplate = path.join(downloadPath, `${baseName}.%(ext)s`);
+  const ffmpegLocation = detectFfmpegLocation();
+
+  const args = argsBuilder({
+    outputTemplate,
+    mediaUrl: video.url,
+    ffmpegLocation
+  });
+
+  const { code, stderr } = await runYtDlp(args);
+
+  if (code !== 0) {
+    // Remove artefatos parciais quando o yt-dlp falhar.
+    await safeRemoveByPrefix(downloadPath, baseName);
+    throw new DownloadError('YTDLP_ERROR', 'yt-dlp retornou erro durante o download.', {
+      code,
+      stderr
+    });
+  }
+
+  const filePath = await resolveOutputPath(downloadPath, baseName, outputExtensions, outputLabel);
+  const stats = await fs.promises.stat(filePath);
+
+  if (!skipSizeValidation && stats.size > maxFileSize) {
+    await safeUnlink(filePath);
+    throw new DownloadError('FILE_TOO_LARGE', 'Arquivo acima do limite de tamanho permitido.', {
+      size: stats.size,
+      maxFileSize
+    });
+  }
+
+  return {
+    filePath,
+    fileSize: stats.size
+  };
+}
+
+async function downloadAudio(video, options) {
+  return downloadWithArgs(video, {
+    ...options,
+    argsBuilder: buildAudioArgs,
+    outputExtensions: ['mp3'],
+    outputLabel: 'Arquivo MP3'
+  });
+}
+
+async function downloadVideo(video, options) {
+  const rawResult = await downloadWithArgs(video, {
+    ...options,
+    argsBuilder: buildVideoArgs,
+    outputExtensions: ['mp4'],
+    outputLabel: 'Arquivo MP4',
+    skipSizeValidation: true
+  });
+
+  const ffmpegLocation = detectFfmpegLocation();
+  const convertedPath = rawResult.filePath.replace(/\.mp4$/i, '-wa.mp4');
+
+  try {
+    await runFfmpeg(rawResult.filePath, convertedPath, ffmpegLocation);
+  } finally {
+    await safeUnlink(rawResult.filePath);
+  }
+
+  const stats = await fs.promises.stat(convertedPath);
+  if (stats.size > options.maxFileSize) {
+    await safeUnlink(convertedPath);
+    throw new DownloadError('FILE_TOO_LARGE', 'Arquivo acima do limite de tamanho permitido.', {
+      size: stats.size,
+      maxFileSize: options.maxFileSize
+    });
+  }
+
+  return {
+    filePath: convertedPath,
+    fileSize: stats.size
+  };
+}
+
+module.exports = {
+  downloadAudio,
+  downloadVideo,
+  DownloadError
+};

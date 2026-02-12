@@ -1,0 +1,133 @@
+# WhatsApp Music Bot
+
+Bot profissional de WhatsApp (headless) para receber comandos, buscar musica no YouTube, baixar audio em MP3 e enviar o arquivo direto no chat.
+
+## Stack
+
+- Node.js 20+
+- [@whiskeysockets/baileys](https://www.npmjs.com/package/@whiskeysockets/baileys)
+- [yt-search](https://www.npmjs.com/package/yt-search)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) (binario no sistema)
+- ffmpeg instalado no sistema
+- dotenv
+
+## Estrutura
+
+```text
+/whatsapp-music-bot
+├── src/
+│   ├── index.js
+│   ├── whatsapp.js
+│   ├── commands.js
+│   ├── youtube.js
+│   ├── downloader.js
+│   ├── queue.js
+│   ├── config.js
+│   └── utils.js
+├── downloads/
+├── .env.example
+├── package.json
+└── README.md
+```
+
+## Fluxo
+
+WhatsApp (Baileys) -> parser de comandos -> busca no YouTube (videos + playlists) -> selecao de opcao por numero (audio/video) -> fila de processamento -> download/conversao -> envio no chat -> limpeza do arquivo temporario.
+
+Para videos, o bot baixa e converte para MP4 compativel com WhatsApp (H.264 + AAC, 720p max).
+
+## Dependencias de sistema
+
+Assumindo Linux (Ubuntu/Debian):
+
+```bash
+sudo apt update
+sudo apt install -y ffmpeg
+```
+
+Instale `yt-dlp` no sistema (uma das opcoes):
+
+```bash
+sudo apt install -y yt-dlp
+# ou
+python3 -m pip install -U yt-dlp
+```
+
+## Instalacao
+
+```bash
+cd whatsapp-music-bot
+cp .env.example .env
+npm install
+```
+
+## Configuracao (`.env`)
+
+- `DOWNLOAD_PATH`: pasta de arquivos temporarios (MP3/MP4).
+- `MAX_AUDIO_DURATION`: limite maximo para audio em segundos (padrao: `1800` = 30 min).
+- `MAX_VIDEO_DURATION`: limite maximo para video em segundos (padrao: `1200` = 20 min).
+- `SESSION_PATH`: pasta de sessao/autenticacao do Baileys.
+- `MAX_AUDIO_FILE_SIZE`: limite maximo de tamanho do audio em bytes (padrao: `20971520`).
+- `MAX_VIDEO_FILE_SIZE`: limite maximo de tamanho do video em bytes (padrao: `104857600`).
+- `MAX_SEARCH_OPTIONS`: quantidade maxima de opcoes retornadas na busca (padrao: `8`).
+- `MAX_PLAYLIST_ITEMS`: quantidade maxima de faixas listadas ao escolher playlist (padrao: `10`).
+- `SELECTION_TIMEOUT_SECONDS`: tempo maximo para o usuario escolher uma opcao (padrao: `120`).
+
+## Executar localmente
+
+```bash
+npm start
+```
+
+No primeiro start, o QR Code aparece no terminal. Escaneie com o WhatsApp para autenticar.
+
+## Executar em servidor (headless)
+
+1. Instale Node.js 20+, ffmpeg e yt-dlp.
+2. Suba o projeto no servidor.
+3. Rode o bot em processo persistente (systemd, pm2 ou tmux).
+4. Faça o pareamento via QR no primeiro boot.
+5. Mantenha a pasta de sessao (`SESSION_PATH`) persistida em disco.
+
+Exemplo rapido com `pm2`:
+
+```bash
+npm install -g pm2
+pm2 start src/index.js --name whatsapp-music-bot
+pm2 save
+```
+
+## Comandos
+
+- `/play <nome/url>` (padrao: audio MP3)
+- `/video <nome/url>` (padrao: video 720p)
+- `/cancel`
+- `/help`
+
+### Como funciona a selecao
+
+1. Envie `/play <termo>` ou `/video <termo>`.
+2. O bot retorna opcoes com titulo, canal, duracao e tipo.
+3. Responda com:
+   - `1` para usar o formato padrao do comando.
+   - `a1` para forcar audio MP3.
+   - `v1` para forcar video 720p.
+4. Se escolher playlist, o bot retorna as musicas da playlist para nova selecao.
+
+## Tratamento de erros implementado
+
+- URL invalida
+- Musica nao encontrada
+- Audio acima do limite de 30 minutos
+- Video acima do limite de 20 minutos
+- Playlist nao encontrada ou sem faixas validas
+- Erro no yt-dlp
+- Arquivo acima do limite de tamanho
+- Falha de envio quando WhatsApp desconectar
+
+## Observacoes
+
+- Downloads sao processados com fila (1 por vez).
+- O usuario recebe posicao quando entra em fila.
+- Arquivos MP3 sao removidos apos envio ou falha.
+- Codigo modular e pronto para uso pessoal em producao.
