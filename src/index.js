@@ -398,6 +398,9 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
       ytDlpExtractorArgs: config.ytDlpExtractorArgs,
       ytDlpJsRuntimes: config.ytDlpJsRuntimes,
       ytDlpRemoteComponents: config.ytDlpRemoteComponents,
+      audioBitrateKbps: config.audioBitrateKbps,
+      audioChannels: config.audioChannels,
+      audioSampleRate: config.audioSampleRate,
       audioQuality: config.audioQuality,
       ytDlpConcurrentFragments: config.ytDlpConcurrentFragments
     });

@@ -54,6 +54,9 @@ module.exports = {
   ytDlpExtractorArgs: String(process.env.YTDLP_EXTRACTOR_ARGS || '').trim(),
   ytDlpJsRuntimes: String(process.env.YTDLP_JS_RUNTIMES || '').trim(),
   ytDlpRemoteComponents: String(process.env.YTDLP_REMOTE_COMPONENTS || '').trim(),
-  audioQuality: toRangeNumber(process.env.AUDIO_QUALITY, 5, 0, 9),
-  ytDlpConcurrentFragments: toPositiveNumber(process.env.YTDLP_CONCURRENT_FRAGMENTS, 4)
+  audioQuality: toRangeNumber(process.env.AUDIO_QUALITY, 8, 0, 9),
+  audioBitrateKbps: toRangeNumber(process.env.AUDIO_BITRATE_KBPS, 96, 32, 320),
+  audioChannels: toRangeNumber(process.env.AUDIO_CHANNELS, 1, 1, 2),
+  audioSampleRate: toRangeNumber(process.env.AUDIO_SAMPLE_RATE, 32000, 8000, 48000),
+  ytDlpConcurrentFragments: toPositiveNumber(process.env.YTDLP_CONCURRENT_FRAGMENTS, 8)
 };

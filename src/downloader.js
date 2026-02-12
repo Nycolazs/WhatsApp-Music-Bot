@@ -262,6 +262,9 @@ function buildAudioArgs({
   ffmpegLocation,
   ytDlpAuthArgs,
   audioQuality = 5,
+  audioBitrateKbps = 96,
+  audioChannels = 1,
+  audioSampleRate = 32000,
   ytDlpConcurrentFragments = 4
 }) {
   const args = [
@@ -276,6 +279,13 @@ function buildAudioArgs({
     '--audio-quality',
     String(audioQuality)
   ];
+
+  const postprocessorArgs = [
+    '-b:a', `${audioBitrateKbps}k`,
+    '-ac', String(audioChannels),
+    '-ar', String(audioSampleRate)
+  ];
+  args.push('--postprocessor-args', `ExtractAudio+ffmpeg_o:${postprocessorArgs.join(' ')}`);
 
   if (ffmpegLocation) {
     args.push('--ffmpeg-location', ffmpegLocation);
@@ -342,6 +352,9 @@ async function downloadWithArgs(video, options) {
     ytDlpJsRuntimes,
     ytDlpRemoteComponents,
     audioQuality,
+    audioBitrateKbps,
+    audioChannels,
+    audioSampleRate,
     ytDlpConcurrentFragments
   } = options;
 
@@ -364,6 +377,9 @@ async function downloadWithArgs(video, options) {
     ffmpegLocation,
     ytDlpAuthArgs,
     audioQuality,
+    audioBitrateKbps,
+    audioChannels,
+    audioSampleRate,
     ytDlpConcurrentFragments
   });
 
