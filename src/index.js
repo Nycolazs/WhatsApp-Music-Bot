@@ -130,6 +130,10 @@ function mapPlayError(error) {
       return 'YouTube bloqueou os formatos de midia. Configure YTDLP_JS_RUNTIMES e YTDLP_REMOTE_COMPONENTS no .env.';
     }
 
+    if (error.code === 'YTDLP_FORMAT_UNAVAILABLE') {
+      return 'Este video nao liberou formatos compatíveis no momento. Tente outro video ou use /play para audio.';
+    }
+
     if (error.code === 'FILE_TOO_LARGE') {
       return 'O arquivo final ficou muito grande para envio no WhatsApp.';
     }

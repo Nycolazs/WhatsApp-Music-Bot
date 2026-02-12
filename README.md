@@ -72,11 +72,11 @@ npm install
 - `MAX_SEARCH_OPTIONS`: quantidade maxima de opcoes retornadas na busca (padrao: `8`).
 - `MAX_PLAYLIST_ITEMS`: quantidade maxima de faixas listadas ao escolher playlist (padrao: `10`).
 - `SELECTION_TIMEOUT_SECONDS`: tempo maximo para o usuario escolher uma opcao (padrao: `120`).
-- `AUDIO_QUALITY`: qualidade do MP3 no `yt-dlp` (`0` melhor/mais pesado, `9` menor/mais rapido; padrao: `8`).
-- `AUDIO_BITRATE_KBPS`: bitrate final do MP3 (padrao: `96`).
-- `AUDIO_CHANNELS`: canais de audio (`1` mono, `2` stereo; padrao: `1`).
-- `AUDIO_SAMPLE_RATE`: sample rate final do audio (padrao: `32000`).
-- `YTDLP_CONCURRENT_FRAGMENTS`: downloads concorrentes no `yt-dlp` para acelerar (padrao: `8`).
+- `AUDIO_QUALITY`: qualidade do MP3 no `yt-dlp` (`0` melhor/mais pesado, `9` menor/mais rapido; padrao: `3`).
+- `AUDIO_BITRATE_KBPS`: bitrate final do MP3 (padrao: `160`).
+- `AUDIO_CHANNELS`: canais de audio (`1` mono, `2` stereo; padrao: `2`).
+- `AUDIO_SAMPLE_RATE`: sample rate final do audio (padrao: `44100`).
+- `YTDLP_CONCURRENT_FRAGMENTS`: downloads concorrentes no `yt-dlp` para acelerar (padrao: `6`).
 - `YTDLP_COOKIES_FILE` (opcional): caminho de `cookies.txt` para evitar bloqueio anti-bot do YouTube.
 - `YTDLP_COOKIES_FROM_BROWSER` (opcional): usa cookies direto do browser (`chrome`, `firefox`, etc).
 - `YTDLP_EXTRACTOR_ARGS` (opcional): argumentos extras do yt-dlp (ex: `youtube:player_client=android`).

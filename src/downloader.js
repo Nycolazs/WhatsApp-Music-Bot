@@ -154,9 +154,13 @@ function isYtDlpChallengeError(stderr) {
   const output = String(stderr || '').toLowerCase();
   return (
     output.includes('n challenge solving failed') ||
-    output.includes('only images are available for download') ||
-    output.includes('requested format is not available')
+    output.includes('only images are available for download')
   );
+}
+
+function isYtDlpFormatUnavailableError(stderr) {
+  const output = String(stderr || '').toLowerCase();
+  return output.includes('requested format is not available');
 }
 
 function runFfmpeg(inputPath, outputPath, ffmpegLocation) {
@@ -315,11 +319,7 @@ function buildVideoArgs({
     '-N',
     String(Math.max(1, ytDlpConcurrentFragments)),
     '-f',
-    'bestvideo[height<=720]+bestaudio/best[height<=720]',
-    '--merge-output-format',
-    'mp4',
-    '--recode-video',
-    'mp4'
+    'bv*[height<=720]+ba/b[height<=720]/best'
   ];
 
   if (ffmpegLocation) {
@@ -405,6 +405,14 @@ async function downloadWithArgs(video, options) {
       );
     }
 
+    if (isYtDlpFormatUnavailableError(stderr)) {
+      throw new DownloadError(
+        'YTDLP_FORMAT_UNAVAILABLE',
+        'Formato solicitado nao disponivel para este video.',
+        { code, stderr }
+      );
+    }
+
     throw new DownloadError('YTDLP_ERROR', 'yt-dlp retornou erro durante o download.', {
       code,
       stderr
@@ -441,8 +449,8 @@ async function downloadVideo(video, options) {
   const rawResult = await downloadWithArgs(video, {
     ...options,
     argsBuilder: buildVideoArgs,
-    outputExtensions: ['mp4'],
-    outputLabel: 'Arquivo MP4',
+    outputExtensions: ['mp4', 'mkv', 'webm'],
+    outputLabel: 'Arquivo de video',
     skipSizeValidation: true
   });
 
