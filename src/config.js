@@ -22,6 +22,20 @@ function toPositiveNumber(value, fallback) {
   return parsed;
 }
 
+function toRangeNumber(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  const bounded = Math.floor(parsed);
+  if (bounded < min || bounded > max) {
+    return fallback;
+  }
+
+  return bounded;
+}
+
 const legacyMaxDuration = toPositiveNumber(process.env.MAX_DURATION, 0);
 const legacyMaxFileSize = toPositiveNumber(process.env.MAX_FILE_SIZE, 20 * 1024 * 1024);
 
@@ -39,5 +53,7 @@ module.exports = {
   ytDlpCookiesFromBrowser: String(process.env.YTDLP_COOKIES_FROM_BROWSER || '').trim(),
   ytDlpExtractorArgs: String(process.env.YTDLP_EXTRACTOR_ARGS || '').trim(),
   ytDlpJsRuntimes: String(process.env.YTDLP_JS_RUNTIMES || '').trim(),
-  ytDlpRemoteComponents: String(process.env.YTDLP_REMOTE_COMPONENTS || '').trim()
+  ytDlpRemoteComponents: String(process.env.YTDLP_REMOTE_COMPONENTS || '').trim(),
+  audioQuality: toRangeNumber(process.env.AUDIO_QUALITY, 5, 0, 9),
+  ytDlpConcurrentFragments: toPositiveNumber(process.env.YTDLP_CONCURRENT_FRAGMENTS, 4)
 };

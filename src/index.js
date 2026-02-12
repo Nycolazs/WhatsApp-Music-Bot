@@ -367,7 +367,8 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
         ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser,
         ytDlpExtractorArgs: config.ytDlpExtractorArgs,
         ytDlpJsRuntimes: config.ytDlpJsRuntimes,
-        ytDlpRemoteComponents: config.ytDlpRemoteComponents
+        ytDlpRemoteComponents: config.ytDlpRemoteComponents,
+        ytDlpConcurrentFragments: config.ytDlpConcurrentFragments
       });
 
       outputFile = downloadResult.filePath;
@@ -396,7 +397,9 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
       ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser,
       ytDlpExtractorArgs: config.ytDlpExtractorArgs,
       ytDlpJsRuntimes: config.ytDlpJsRuntimes,
-      ytDlpRemoteComponents: config.ytDlpRemoteComponents
+      ytDlpRemoteComponents: config.ytDlpRemoteComponents,
+      audioQuality: config.audioQuality,
+      ytDlpConcurrentFragments: config.ytDlpConcurrentFragments
     });
 
     outputFile = downloadResult.filePath;

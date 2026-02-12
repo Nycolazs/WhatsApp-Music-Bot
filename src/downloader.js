@@ -260,17 +260,21 @@ function buildAudioArgs({
   outputTemplate,
   mediaUrl,
   ffmpegLocation,
-  ytDlpAuthArgs
+  ytDlpAuthArgs,
+  audioQuality = 5,
+  ytDlpConcurrentFragments = 4
 }) {
   const args = [
     '--no-playlist',
+    '-N',
+    String(Math.max(1, ytDlpConcurrentFragments)),
     '-f',
-    'bestaudio/best',
+    'bestaudio[ext=m4a]/bestaudio/best',
     '-x',
     '--audio-format',
     'mp3',
     '--audio-quality',
-    '0'
+    String(audioQuality)
   ];
 
   if (ffmpegLocation) {
@@ -293,10 +297,13 @@ function buildVideoArgs({
   outputTemplate,
   mediaUrl,
   ffmpegLocation,
-  ytDlpAuthArgs
+  ytDlpAuthArgs,
+  ytDlpConcurrentFragments = 4
 }) {
   const args = [
     '--no-playlist',
+    '-N',
+    String(Math.max(1, ytDlpConcurrentFragments)),
     '-f',
     'bestvideo[height<=720]+bestaudio/best[height<=720]',
     '--merge-output-format',
@@ -333,7 +340,9 @@ async function downloadWithArgs(video, options) {
     ytDlpCookiesFromBrowser,
     ytDlpExtractorArgs,
     ytDlpJsRuntimes,
-    ytDlpRemoteComponents
+    ytDlpRemoteComponents,
+    audioQuality,
+    ytDlpConcurrentFragments
   } = options;
 
   await ensureDirectory(downloadPath);
@@ -353,7 +362,9 @@ async function downloadWithArgs(video, options) {
     outputTemplate,
     mediaUrl: video.url,
     ffmpegLocation,
-    ytDlpAuthArgs
+    ytDlpAuthArgs,
+    audioQuality,
+    ytDlpConcurrentFragments
   });
 
   const { code, stderr } = await runYtDlp(args);
