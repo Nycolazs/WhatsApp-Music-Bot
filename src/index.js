@@ -126,6 +126,10 @@ function mapPlayError(error) {
       return 'YouTube bloqueou esta requisicao. Configure cookies no .env (YTDLP_COOKIES_FILE) e tente novamente.';
     }
 
+    if (error.code === 'YTDLP_CHALLENGE_FAILED') {
+      return 'YouTube bloqueou os formatos de midia. Configure YTDLP_JS_RUNTIMES e YTDLP_REMOTE_COMPONENTS no .env.';
+    }
+
     if (error.code === 'FILE_TOO_LARGE') {
       return 'O arquivo final ficou muito grande para envio no WhatsApp.';
     }
@@ -361,7 +365,9 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
         maxFileSize: config.maxVideoFileSize,
         ytDlpCookiesFile: config.ytDlpCookiesFile,
         ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser,
-        ytDlpExtractorArgs: config.ytDlpExtractorArgs
+        ytDlpExtractorArgs: config.ytDlpExtractorArgs,
+        ytDlpJsRuntimes: config.ytDlpJsRuntimes,
+        ytDlpRemoteComponents: config.ytDlpRemoteComponents
       });
 
       outputFile = downloadResult.filePath;
@@ -388,7 +394,9 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
       maxFileSize: config.maxAudioFileSize,
       ytDlpCookiesFile: config.ytDlpCookiesFile,
       ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser,
-      ytDlpExtractorArgs: config.ytDlpExtractorArgs
+      ytDlpExtractorArgs: config.ytDlpExtractorArgs,
+      ytDlpJsRuntimes: config.ytDlpJsRuntimes,
+      ytDlpRemoteComponents: config.ytDlpRemoteComponents
     });
 
     outputFile = downloadResult.filePath;

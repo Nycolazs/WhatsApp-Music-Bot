@@ -37,5 +37,7 @@ module.exports = {
   selectionTimeoutSeconds: toPositiveNumber(process.env.SELECTION_TIMEOUT_SECONDS, 120),
   ytDlpCookiesFile: toAbsolutePath(process.env.YTDLP_COOKIES_FILE, null),
   ytDlpCookiesFromBrowser: String(process.env.YTDLP_COOKIES_FROM_BROWSER || '').trim(),
-  ytDlpExtractorArgs: String(process.env.YTDLP_EXTRACTOR_ARGS || '').trim()
+  ytDlpExtractorArgs: String(process.env.YTDLP_EXTRACTOR_ARGS || '').trim(),
+  ytDlpJsRuntimes: String(process.env.YTDLP_JS_RUNTIMES || '').trim(),
+  ytDlpRemoteComponents: String(process.env.YTDLP_REMOTE_COMPONENTS || '').trim()
 };

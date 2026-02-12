@@ -102,7 +102,9 @@ function buildYtDlpAuthArgs(options = {}) {
   const {
     ytDlpCookiesFile,
     ytDlpCookiesFromBrowser,
-    ytDlpExtractorArgs
+    ytDlpExtractorArgs,
+    ytDlpJsRuntimes,
+    ytDlpRemoteComponents
   } = options;
 
   const args = [];
@@ -125,6 +127,14 @@ function buildYtDlpAuthArgs(options = {}) {
     args.push('--extractor-args', ytDlpExtractorArgs);
   }
 
+  if (ytDlpJsRuntimes) {
+    args.push('--js-runtimes', ytDlpJsRuntimes);
+  }
+
+  if (ytDlpRemoteComponents) {
+    args.push('--remote-components', ytDlpRemoteComponents);
+  }
+
   return args;
 }
 
@@ -137,6 +147,15 @@ function isYtDlpAuthError(stderr) {
     output.includes("sign in to confirm you're not a bot") ||
     output.includes('use --cookies-from-browser or --cookies for the authentication') ||
     output.includes('this video is age-restricted and only available on youtube')
+  );
+}
+
+function isYtDlpChallengeError(stderr) {
+  const output = String(stderr || '').toLowerCase();
+  return (
+    output.includes('n challenge solving failed') ||
+    output.includes('only images are available for download') ||
+    output.includes('requested format is not available')
   );
 }
 
@@ -312,7 +331,9 @@ async function downloadWithArgs(video, options) {
     skipSizeValidation = false,
     ytDlpCookiesFile,
     ytDlpCookiesFromBrowser,
-    ytDlpExtractorArgs
+    ytDlpExtractorArgs,
+    ytDlpJsRuntimes,
+    ytDlpRemoteComponents
   } = options;
 
   await ensureDirectory(downloadPath);
@@ -323,7 +344,9 @@ async function downloadWithArgs(video, options) {
   const ytDlpAuthArgs = buildYtDlpAuthArgs({
     ytDlpCookiesFile,
     ytDlpCookiesFromBrowser,
-    ytDlpExtractorArgs
+    ytDlpExtractorArgs,
+    ytDlpJsRuntimes,
+    ytDlpRemoteComponents
   });
 
   const args = argsBuilder({
@@ -343,6 +366,14 @@ async function downloadWithArgs(video, options) {
       throw new DownloadError(
         'YTDLP_AUTH_REQUIRED',
         'YouTube exigiu autenticacao (cookies) para continuar.',
+        { code, stderr }
+      );
+    }
+
+    if (isYtDlpChallengeError(stderr)) {
+      throw new DownloadError(
+        'YTDLP_CHALLENGE_FAILED',
+        'Falha ao resolver challenge do YouTube (runtime JS/EJS).',
         { code, stderr }
       );
     }
