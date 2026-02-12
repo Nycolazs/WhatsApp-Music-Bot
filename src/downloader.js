@@ -26,6 +26,15 @@ function fileExists(filePath) {
   }
 }
 
+function readableFileExists(filePath) {
+  try {
+    fs.accessSync(filePath, fs.constants.R_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function detectFfmpegLocation() {
   if (process.env.FFMPEG_LOCATION) {
     return process.env.FFMPEG_LOCATION;
@@ -87,6 +96,42 @@ function runYtDlp(args) {
       resolve({ code, stderr });
     });
   });
+}
+
+function buildYtDlpAuthArgs(options = {}) {
+  const {
+    ytDlpCookiesFile,
+    ytDlpCookiesFromBrowser
+  } = options;
+
+  if (ytDlpCookiesFile) {
+    if (!readableFileExists(ytDlpCookiesFile)) {
+      throw new DownloadError(
+        'COOKIES_FILE_NOT_FOUND',
+        `Arquivo de cookies nao encontrado: ${ytDlpCookiesFile}`
+      );
+    }
+
+    return ['--cookies', ytDlpCookiesFile];
+  }
+
+  if (ytDlpCookiesFromBrowser) {
+    return ['--cookies-from-browser', ytDlpCookiesFromBrowser];
+  }
+
+  return [];
+}
+
+function isYtDlpAuthError(stderr) {
+  const output = String(stderr || '')
+    .toLowerCase()
+    .replace(/’/g, "'");
+
+  return (
+    output.includes("sign in to confirm you're not a bot") ||
+    output.includes('use --cookies-from-browser or --cookies for the authentication') ||
+    output.includes('this video is age-restricted and only available on youtube')
+  );
 }
 
 function runFfmpeg(inputPath, outputPath, ffmpegLocation) {
@@ -186,7 +231,12 @@ async function resolveOutputPath(downloadPath, baseName, extensions, label) {
   return path.join(downloadPath, match);
 }
 
-function buildAudioArgs({ outputTemplate, mediaUrl, ffmpegLocation }) {
+function buildAudioArgs({
+  outputTemplate,
+  mediaUrl,
+  ffmpegLocation,
+  ytDlpAuthArgs
+}) {
   const args = [
     '--no-playlist',
     '-f',
@@ -203,6 +253,7 @@ function buildAudioArgs({ outputTemplate, mediaUrl, ffmpegLocation }) {
   }
 
   args.push(
+    ...ytDlpAuthArgs,
     '--no-progress',
     '--newline',
     '-o',
@@ -213,7 +264,12 @@ function buildAudioArgs({ outputTemplate, mediaUrl, ffmpegLocation }) {
   return args;
 }
 
-function buildVideoArgs({ outputTemplate, mediaUrl, ffmpegLocation }) {
+function buildVideoArgs({
+  outputTemplate,
+  mediaUrl,
+  ffmpegLocation,
+  ytDlpAuthArgs
+}) {
   const args = [
     '--no-playlist',
     '-f',
@@ -229,6 +285,7 @@ function buildVideoArgs({ outputTemplate, mediaUrl, ffmpegLocation }) {
   }
 
   args.push(
+    ...ytDlpAuthArgs,
     '--no-progress',
     '--newline',
     '-o',
@@ -246,7 +303,9 @@ async function downloadWithArgs(video, options) {
     argsBuilder,
     outputExtensions,
     outputLabel,
-    skipSizeValidation = false
+    skipSizeValidation = false,
+    ytDlpCookiesFile,
+    ytDlpCookiesFromBrowser
   } = options;
 
   await ensureDirectory(downloadPath);
@@ -254,11 +313,16 @@ async function downloadWithArgs(video, options) {
   const baseName = `${sanitizeFilename(video.title, 60)}-${Date.now()}`;
   const outputTemplate = path.join(downloadPath, `${baseName}.%(ext)s`);
   const ffmpegLocation = detectFfmpegLocation();
+  const ytDlpAuthArgs = buildYtDlpAuthArgs({
+    ytDlpCookiesFile,
+    ytDlpCookiesFromBrowser
+  });
 
   const args = argsBuilder({
     outputTemplate,
     mediaUrl: video.url,
-    ffmpegLocation
+    ffmpegLocation,
+    ytDlpAuthArgs
   });
 
   const { code, stderr } = await runYtDlp(args);
@@ -266,6 +330,15 @@ async function downloadWithArgs(video, options) {
   if (code !== 0) {
     // Remove artefatos parciais quando o yt-dlp falhar.
     await safeRemoveByPrefix(downloadPath, baseName);
+
+    if (isYtDlpAuthError(stderr)) {
+      throw new DownloadError(
+        'YTDLP_AUTH_REQUIRED',
+        'YouTube exigiu autenticacao (cookies) para continuar.',
+        { code, stderr }
+      );
+    }
+
     throw new DownloadError('YTDLP_ERROR', 'yt-dlp retornou erro durante o download.', {
       code,
       stderr

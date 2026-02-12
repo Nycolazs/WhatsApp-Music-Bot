@@ -34,5 +34,7 @@ module.exports = {
   maxVideoFileSize: toPositiveNumber(process.env.MAX_VIDEO_FILE_SIZE, Math.max(legacyMaxFileSize, 100 * 1024 * 1024)),
   maxSearchOptions: toPositiveNumber(process.env.MAX_SEARCH_OPTIONS, 8),
   maxPlaylistItems: toPositiveNumber(process.env.MAX_PLAYLIST_ITEMS, 10),
-  selectionTimeoutSeconds: toPositiveNumber(process.env.SELECTION_TIMEOUT_SECONDS, 120)
+  selectionTimeoutSeconds: toPositiveNumber(process.env.SELECTION_TIMEOUT_SECONDS, 120),
+  ytDlpCookiesFile: toAbsolutePath(process.env.YTDLP_COOKIES_FILE, null),
+  ytDlpCookiesFromBrowser: String(process.env.YTDLP_COOKIES_FROM_BROWSER || '').trim()
 };

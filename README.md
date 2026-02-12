@@ -72,6 +72,8 @@ npm install
 - `MAX_SEARCH_OPTIONS`: quantidade maxima de opcoes retornadas na busca (padrao: `8`).
 - `MAX_PLAYLIST_ITEMS`: quantidade maxima de faixas listadas ao escolher playlist (padrao: `10`).
 - `SELECTION_TIMEOUT_SECONDS`: tempo maximo para o usuario escolher uma opcao (padrao: `120`).
+- `YTDLP_COOKIES_FILE` (opcional): caminho de `cookies.txt` para evitar bloqueio anti-bot do YouTube.
+- `YTDLP_COOKIES_FROM_BROWSER` (opcional): usa cookies direto do browser (`chrome`, `firefox`, etc).
 
 ## Executar localmente
 
@@ -140,3 +142,17 @@ Sem repetir o conteudo. O bot usa automaticamente o texto da mensagem citada com
 - O usuario recebe posicao quando entra em fila.
 - Arquivos MP3 sao removidos apos envio ou falha.
 - Codigo modular e pronto para uso pessoal em producao.
+
+## Erro "Sign in to confirm you're not a bot"
+
+Se o YouTube bloquear a VPS, configure cookies:
+
+1. Exporte um `cookies.txt` valido da sua conta YouTube.
+2. Coloque o arquivo no servidor (ex: `/home/ubuntu/WhatsApp-Music-Bot/cookies.txt`).
+3. No `.env`, defina:
+
+```bash
+YTDLP_COOKIES_FILE=/home/ubuntu/WhatsApp-Music-Bot/cookies.txt
+```
+
+4. Reinicie o bot (`pm2 restart whatsapp-music-bot --update-env`).

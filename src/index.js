@@ -118,6 +118,14 @@ function mapPlayError(error) {
       return 'Falha ao converter o video para formato compativel do WhatsApp.';
     }
 
+    if (error.code === 'COOKIES_FILE_NOT_FOUND') {
+      return 'Arquivo de cookies do yt-dlp nao encontrado no servidor. Verifique YTDLP_COOKIES_FILE.';
+    }
+
+    if (error.code === 'YTDLP_AUTH_REQUIRED') {
+      return 'YouTube bloqueou esta requisicao. Configure cookies no .env (YTDLP_COOKIES_FILE) e tente novamente.';
+    }
+
     if (error.code === 'FILE_TOO_LARGE') {
       return 'O arquivo final ficou muito grande para envio no WhatsApp.';
     }
@@ -350,7 +358,9 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
 
       const downloadResult = await downloadVideo(video, {
         downloadPath: config.downloadPath,
-        maxFileSize: config.maxVideoFileSize
+        maxFileSize: config.maxVideoFileSize,
+        ytDlpCookiesFile: config.ytDlpCookiesFile,
+        ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser
       });
 
       outputFile = downloadResult.filePath;
@@ -374,7 +384,9 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
 
     const downloadResult = await downloadAudio(video, {
       downloadPath: config.downloadPath,
-      maxFileSize: config.maxAudioFileSize
+      maxFileSize: config.maxAudioFileSize,
+      ytDlpCookiesFile: config.ytDlpCookiesFile,
+      ytDlpCookiesFromBrowser: config.ytDlpCookiesFromBrowser
     });
 
     outputFile = downloadResult.filePath;
