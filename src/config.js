@@ -37,15 +37,19 @@ function toRangeNumber(value, fallback, min, max) {
 }
 
 const legacyMaxDuration = toPositiveNumber(process.env.MAX_DURATION, 0);
-const legacyMaxFileSize = toPositiveNumber(process.env.MAX_FILE_SIZE, 20 * 1024 * 1024);
+const defaultMaxFileSizeBytes = 500 * 1024 * 1024;
+const legacyMaxFileSize = toPositiveNumber(process.env.MAX_FILE_SIZE, defaultMaxFileSizeBytes);
 
 module.exports = {
   downloadPath: toAbsolutePath(process.env.DOWNLOAD_PATH, path.join(projectRoot, 'downloads')),
   maxAudioDuration: toPositiveNumber(process.env.MAX_AUDIO_DURATION, legacyMaxDuration || 1800),
-  maxVideoDuration: toPositiveNumber(process.env.MAX_VIDEO_DURATION, 1200),
+  maxVideoDuration: toPositiveNumber(process.env.MAX_VIDEO_DURATION, 7200),
   sessionPath: toAbsolutePath(process.env.SESSION_PATH, path.join(projectRoot, 'session')),
   maxAudioFileSize: toPositiveNumber(process.env.MAX_AUDIO_FILE_SIZE, legacyMaxFileSize),
-  maxVideoFileSize: toPositiveNumber(process.env.MAX_VIDEO_FILE_SIZE, Math.max(legacyMaxFileSize, 100 * 1024 * 1024)),
+  maxVideoFileSize: toPositiveNumber(
+    process.env.MAX_VIDEO_FILE_SIZE,
+    Math.max(legacyMaxFileSize, defaultMaxFileSizeBytes)
+  ),
   maxSearchOptions: toPositiveNumber(process.env.MAX_SEARCH_OPTIONS, 8),
   maxPlaylistItems: toPositiveNumber(process.env.MAX_PLAYLIST_ITEMS, 10),
   selectionTimeoutSeconds: toPositiveNumber(process.env.SELECTION_TIMEOUT_SECONDS, 120),
@@ -58,5 +62,8 @@ module.exports = {
   audioBitrateKbps: toRangeNumber(process.env.AUDIO_BITRATE_KBPS, 160, 32, 320),
   audioChannels: toRangeNumber(process.env.AUDIO_CHANNELS, 2, 1, 2),
   audioSampleRate: toRangeNumber(process.env.AUDIO_SAMPLE_RATE, 44100, 8000, 48000),
-  ytDlpConcurrentFragments: toPositiveNumber(process.env.YTDLP_CONCURRENT_FRAGMENTS, 6)
+  ytDlpConcurrentFragments: toPositiveNumber(process.env.YTDLP_CONCURRENT_FRAGMENTS, 6),
+  videoMaxHeight: toRangeNumber(process.env.VIDEO_MAX_HEIGHT, 480, 240, 720),
+  videoCrf: toRangeNumber(process.env.VIDEO_CRF, 30, 18, 40),
+  videoAudioBitrateKbps: toRangeNumber(process.env.VIDEO_AUDIO_BITRATE_KBPS, 64, 32, 192)
 };

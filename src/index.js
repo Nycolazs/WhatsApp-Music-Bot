@@ -34,7 +34,7 @@ function getMaxSearchDuration() {
 }
 
 function getDefaultMediaLabel(mediaType) {
-  return mediaType === MEDIA_VIDEO ? 'video 720p' : 'audio MP3';
+  return mediaType === MEDIA_VIDEO ? 'video compacto' : 'audio MP3';
 }
 
 function buildHelpText() {
@@ -43,14 +43,14 @@ function buildHelpText() {
     '',
     `${bold('1) Buscar')}`,
     `${mono('/play <nome|url>')} - prioriza audio MP3`,
-    `${mono('/video <nome|url>')} - prioriza video 720p`,
+    `${mono('/video <nome|url>')} - prioriza video compacto`,
     `${mono('/cancel')} - cancela selecao pendente`,
     `${mono('/help')} - mostra este guia`,
     '',
     `${bold('2) Escolher Opcao')}`,
     `${mono('1')} usa formato padrao do comando`,
     `${mono('a1')} forca audio MP3`,
-    `${mono('v1')} forca video 720p`,
+    `${mono('v1')} forca video compacto`,
     '',
     `${bold('3) Playlist')}`,
     'Ao selecionar playlist, o bot lista as faixas.',
@@ -68,7 +68,7 @@ function buildHelpText() {
     '',
     `${bold('Limites')}`,
     `Audio: ${formatSeconds(config.maxAudioDuration)}`,
-    `Video: ${formatSeconds(config.maxVideoDuration)} (720p)`
+    `Video: ${formatSeconds(config.maxVideoDuration)} (max ${config.videoMaxHeight}p)`
   ].join('\n');
 }
 
@@ -301,7 +301,7 @@ function buildSelectionInstructions(defaultMediaType) {
   return [
     `${bold('Selecao')}: responda com o numero da opcao.`,
     `${mono('a+numero')} para audio MP3 (ex: ${mono('a1')})`,
-    `${mono('v+numero')} para video 720p (ex: ${mono('v1')})`,
+    `${mono('v+numero')} para video compacto (ex: ${mono('v1')})`,
     `Somente numero usa o padrao: ${getDefaultMediaLabel(defaultMediaType)}.`,
     `Tempo limite: ${config.selectionTimeoutSeconds}s.`,
     `${mono('/cancel')} para cancelar.`
@@ -362,7 +362,7 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
 
   try {
     if (mediaType === MEDIA_VIDEO) {
-      await replyText(`⬇️ ${bold('Baixando video 720p')}\n${video.title} (${video.durationText})`);
+      await replyText(`⬇️ ${bold('Baixando video compacto')}\n${video.title} (${video.durationText})`);
 
       const downloadResult = await downloadVideo(video, {
         downloadPath: config.downloadPath,
@@ -372,7 +372,10 @@ async function processSelectedMedia({ video, mediaType, replyText, replyAudio, r
         ytDlpExtractorArgs: config.ytDlpExtractorArgs,
         ytDlpJsRuntimes: config.ytDlpJsRuntimes,
         ytDlpRemoteComponents: config.ytDlpRemoteComponents,
-        ytDlpConcurrentFragments: config.ytDlpConcurrentFragments
+        ytDlpConcurrentFragments: config.ytDlpConcurrentFragments,
+        videoMaxHeight: config.videoMaxHeight,
+        videoCrf: config.videoCrf,
+        videoAudioBitrateKbps: config.videoAudioBitrateKbps
       });
 
       outputFile = downloadResult.filePath;
@@ -607,7 +610,7 @@ async function bootstrap() {
   console.log('Iniciando WhatsApp Music Bot...');
   console.log(`Pasta de downloads: ${config.downloadPath}`);
   console.log(`Limite audio: ${formatSeconds(config.maxAudioDuration)}`);
-  console.log(`Limite video: ${formatSeconds(config.maxVideoDuration)} (720p)`);
+  console.log(`Limite video: ${formatSeconds(config.maxVideoDuration)} (max ${config.videoMaxHeight}p)`);
 
   await startWhatsApp({
     sessionPath: config.sessionPath,

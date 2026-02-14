@@ -19,11 +19,45 @@ class DownloadError extends Error {
 
 function fileExists(filePath) {
   try {
-    fs.accessSync(filePath, fs.constants.X_OK);
+    fs.accessSync(filePath, fs.constants.F_OK);
     return true;
   } catch {
     return false;
   }
+}
+
+function buildProcessPath() {
+  const extraPaths = process.platform === 'win32'
+    ? [
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'ffmpeg', 'bin'),
+      'C:\\ffmpeg\\bin',
+      'C:\\ProgramData\\chocolatey\\bin'
+    ]
+    : ['/opt/homebrew/bin', '/usr/local/bin'];
+
+  return [...extraPaths, process.env.PATH || '']
+    .filter(Boolean)
+    .join(path.delimiter);
+}
+
+function getBinaryCandidates(binaryName) {
+  if (process.platform !== 'win32') {
+    return [binaryName];
+  }
+
+  if (binaryName.toLowerCase().endsWith('.exe')) {
+    return [binaryName];
+  }
+
+  return [`${binaryName}.exe`, binaryName];
+}
+
+function directoryHasBinaries(directoryPath, binaries) {
+  return binaries.every((binary) => {
+    return getBinaryCandidates(binary).some((candidate) => {
+      return fileExists(path.join(directoryPath, candidate));
+    });
+  });
 }
 
 function readableFileExists(filePath) {
@@ -40,26 +74,32 @@ function detectFfmpegLocation() {
     return process.env.FFMPEG_LOCATION;
   }
 
-  const whichResult = spawnSync('which', ['ffmpeg'], { encoding: 'utf8' });
+  const locator = process.platform === 'win32' ? 'where' : 'which';
+  const whichResult = spawnSync(locator, ['ffmpeg'], { encoding: 'utf8' });
   if (whichResult.status === 0) {
-    const ffmpegPath = (whichResult.stdout || '').trim();
-    if (ffmpegPath) {
+    const ffmpegPaths = String(whichResult.stdout || '')
+      .split(/\r?\n/)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    for (const ffmpegPath of ffmpegPaths) {
       const candidateDir = path.dirname(ffmpegPath);
-      if (
-        fileExists(path.join(candidateDir, 'ffmpeg')) &&
-        fileExists(path.join(candidateDir, 'ffprobe'))
-      ) {
+      if (directoryHasBinaries(candidateDir, ['ffmpeg', 'ffprobe'])) {
         return candidateDir;
       }
     }
   }
 
-  const commonDirs = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin'];
+  const commonDirs = process.platform === 'win32'
+    ? [
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'ffmpeg', 'bin'),
+      'C:\\ffmpeg\\bin',
+      'C:\\ProgramData\\chocolatey\\bin'
+    ]
+    : ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin'];
+
   for (const candidateDir of commonDirs) {
-    if (
-      fileExists(path.join(candidateDir, 'ffmpeg')) &&
-      fileExists(path.join(candidateDir, 'ffprobe'))
-    ) {
+    if (directoryHasBinaries(candidateDir, ['ffmpeg', 'ffprobe'])) {
       return candidateDir;
     }
   }
@@ -68,10 +108,11 @@ function detectFfmpegLocation() {
 }
 
 function runYtDlp(args) {
-  const envPath = `${['/opt/homebrew/bin', '/usr/local/bin', process.env.PATH || ''].join(':')}`;
+  const envPath = buildProcessPath();
+  const ytDlpBinary = process.env.YTDLP_BINARY || (process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
 
   return new Promise((resolve, reject) => {
-    const child = spawn('yt-dlp', args, {
+    const child = spawn(ytDlpBinary, args, {
       env: {
         ...process.env,
         PATH: envPath
@@ -163,31 +204,93 @@ function isYtDlpFormatUnavailableError(stderr) {
   return output.includes('requested format is not available');
 }
 
-function runFfmpeg(inputPath, outputPath, ffmpegLocation) {
-  const envPath = `${['/opt/homebrew/bin', '/usr/local/bin', process.env.PATH || ''].join(':')}`;
-  const ffmpegBinary = ffmpegLocation ? path.join(ffmpegLocation, 'ffmpeg') : 'ffmpeg';
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function buildVideoCompressionProfile(durationSeconds, options = {}) {
+  const baseHeight = clampNumber(Number(options.videoMaxHeight) || 480, 240, 720);
+  const baseCrf = clampNumber(Number(options.videoCrf) || 30, 18, 40);
+  const baseAudioBitrate = clampNumber(Number(options.videoAudioBitrateKbps) || 64, 32, 192);
+  const duration = Math.max(0, Number(durationSeconds) || 0);
+
+  if (duration >= 7200) {
+    return {
+      maxHeight: Math.min(baseHeight, 240),
+      crf: clampNumber(baseCrf + 2, 18, 40),
+      audioBitrateKbps: Math.min(baseAudioBitrate, 48)
+    };
+  }
+
+  if (duration >= 3600) {
+    return {
+      maxHeight: Math.min(baseHeight, 360),
+      crf: clampNumber(baseCrf + 1, 18, 40),
+      audioBitrateKbps: Math.min(baseAudioBitrate, 56)
+    };
+  }
+
+  if (duration >= 1800) {
+    return {
+      maxHeight: Math.min(baseHeight, 480),
+      crf: clampNumber(baseCrf + 1, 18, 40),
+      audioBitrateKbps: Math.min(baseAudioBitrate, 64)
+    };
+  }
+
+  return {
+    maxHeight: baseHeight,
+    crf: baseCrf,
+    audioBitrateKbps: baseAudioBitrate
+  };
+}
+
+function buildFallbackVideoCompressionProfile(profile) {
+  const fallback = {
+    maxHeight: Math.max(240, Math.min(profile.maxHeight, 360)),
+    crf: clampNumber(profile.crf + 2, 18, 40),
+    audioBitrateKbps: Math.max(32, Math.min(profile.audioBitrateKbps, 48))
+  };
+
+  const changed =
+    fallback.maxHeight !== profile.maxHeight ||
+    fallback.crf !== profile.crf ||
+    fallback.audioBitrateKbps !== profile.audioBitrateKbps;
+
+  return changed ? fallback : null;
+}
+
+function runFfmpeg(inputPath, outputPath, ffmpegLocation, profile = {}) {
+  const envPath = buildProcessPath();
+  const ffmpegBinaryName = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
+  const ffmpegBinary = ffmpegLocation ? path.join(ffmpegLocation, ffmpegBinaryName) : ffmpegBinaryName;
+  const maxHeight = clampNumber(Number(profile.maxHeight) || 480, 240, 720);
+  const crf = clampNumber(Number(profile.crf) || 30, 18, 40);
+  const audioBitrateKbps = clampNumber(Number(profile.audioBitrateKbps) || 64, 32, 192);
   const args = [
     '-y',
     '-i',
     inputPath,
     '-vf',
-    'scale=1280:720:force_original_aspect_ratio=decrease,format=yuv420p',
+    `scale=-2:${maxHeight}:force_original_aspect_ratio=decrease,format=yuv420p`,
     '-c:v',
     'libx264',
     '-preset',
     'veryfast',
     '-crf',
-    '23',
+    String(crf),
     '-profile:v',
     'main',
     '-level',
     '3.1',
+    '-pix_fmt',
+    'yuv420p',
     '-movflags',
     '+faststart',
     '-c:a',
     'aac',
     '-b:a',
-    '128k',
+    `${audioBitrateKbps}k`,
     '-ar',
     '44100',
     '-ac',
@@ -312,14 +415,16 @@ function buildVideoArgs({
   mediaUrl,
   ffmpegLocation,
   ytDlpAuthArgs,
+  videoMaxHeight = 480,
   ytDlpConcurrentFragments = 4
 }) {
+  const boundedMaxHeight = clampNumber(Number(videoMaxHeight) || 480, 240, 720);
   const args = [
     '--no-playlist',
     '-N',
     String(Math.max(1, ytDlpConcurrentFragments)),
     '-f',
-    'bv*[height<=720]+ba/b[height<=720]/best'
+    `bv*[height<=${boundedMaxHeight}][vcodec*=avc1]+ba[acodec*=mp4a]/b[height<=${boundedMaxHeight}][ext=mp4]/best[height<=${boundedMaxHeight}]/best`
   ];
 
   if (ffmpegLocation) {
@@ -355,7 +460,10 @@ async function downloadWithArgs(video, options) {
     audioBitrateKbps,
     audioChannels,
     audioSampleRate,
-    ytDlpConcurrentFragments
+    ytDlpConcurrentFragments,
+    videoMaxHeight,
+    videoCrf,
+    videoAudioBitrateKbps
   } = options;
 
   await ensureDirectory(downloadPath);
@@ -380,7 +488,10 @@ async function downloadWithArgs(video, options) {
     audioBitrateKbps,
     audioChannels,
     audioSampleRate,
-    ytDlpConcurrentFragments
+    ytDlpConcurrentFragments,
+    videoMaxHeight,
+    videoCrf,
+    videoAudioBitrateKbps
   });
 
   const { code, stderr } = await runYtDlp(args);
@@ -446,36 +557,54 @@ async function downloadAudio(video, options) {
 }
 
 async function downloadVideo(video, options) {
+  const compressionProfile = buildVideoCompressionProfile(video?.durationSeconds, {
+    videoMaxHeight: options.videoMaxHeight,
+    videoCrf: options.videoCrf,
+    videoAudioBitrateKbps: options.videoAudioBitrateKbps
+  });
+
   const rawResult = await downloadWithArgs(video, {
     ...options,
     argsBuilder: buildVideoArgs,
     outputExtensions: ['mp4', 'mkv', 'webm'],
     outputLabel: 'Arquivo de video',
-    skipSizeValidation: true
+    skipSizeValidation: true,
+    videoMaxHeight: compressionProfile.maxHeight
   });
 
   const ffmpegLocation = detectFfmpegLocation();
-  const convertedPath = rawResult.filePath.replace(/\.mp4$/i, '-wa.mp4');
+  const parsedRawPath = path.parse(rawResult.filePath);
+  const convertedPath = path.join(parsedRawPath.dir, `${parsedRawPath.name}-wa.mp4`);
 
   try {
-    await runFfmpeg(rawResult.filePath, convertedPath, ffmpegLocation);
+    await runFfmpeg(rawResult.filePath, convertedPath, ffmpegLocation, compressionProfile);
+
+    let stats = await fs.promises.stat(convertedPath);
+    if (stats.size > options.maxFileSize) {
+      const fallbackProfile = buildFallbackVideoCompressionProfile(compressionProfile);
+
+      if (fallbackProfile) {
+        await safeUnlink(convertedPath);
+        await runFfmpeg(rawResult.filePath, convertedPath, ffmpegLocation, fallbackProfile);
+        stats = await fs.promises.stat(convertedPath);
+      }
+    }
+
+    if (stats.size > options.maxFileSize) {
+      await safeUnlink(convertedPath);
+      throw new DownloadError('FILE_TOO_LARGE', 'Arquivo acima do limite de tamanho permitido.', {
+        size: stats.size,
+        maxFileSize: options.maxFileSize
+      });
+    }
+
+    return {
+      filePath: convertedPath,
+      fileSize: stats.size
+    };
   } finally {
     await safeUnlink(rawResult.filePath);
   }
-
-  const stats = await fs.promises.stat(convertedPath);
-  if (stats.size > options.maxFileSize) {
-    await safeUnlink(convertedPath);
-    throw new DownloadError('FILE_TOO_LARGE', 'Arquivo acima do limite de tamanho permitido.', {
-      size: stats.size,
-      maxFileSize: options.maxFileSize
-    });
-  }
-
-  return {
-    filePath: convertedPath,
-    fileSize: stats.size
-  };
 }
 
 module.exports = {

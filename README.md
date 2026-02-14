@@ -34,7 +34,7 @@ Bot profissional de WhatsApp (headless) para receber comandos, buscar musica no 
 
 WhatsApp (Baileys) -> parser de comandos -> busca no YouTube (videos + playlists) -> selecao de opcao por numero (audio/video) -> fila de processamento -> download/conversao -> envio no chat -> limpeza do arquivo temporario.
 
-Para videos, o bot baixa e converte para MP4 compativel com WhatsApp (H.264 + AAC, 720p max).
+Para videos, o bot baixa e converte para MP4 compativel com WhatsApp (H.264 + AAC), com compactacao para reduzir tamanho e permitir duracoes maiores.
 
 ## Dependencias de sistema
 
@@ -53,6 +53,14 @@ sudo apt install -y yt-dlp
 python3 -m pip install -U yt-dlp
 ```
 
+No Windows (PowerShell com `winget`):
+
+```powershell
+winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
+winget install -e --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
+winget install -e --id yt-dlp.yt-dlp --accept-package-agreements --accept-source-agreements
+```
+
 ## Instalacao
 
 ```bash
@@ -65,10 +73,10 @@ npm install
 
 - `DOWNLOAD_PATH`: pasta de arquivos temporarios (MP3/MP4).
 - `MAX_AUDIO_DURATION`: limite maximo para audio em segundos (padrao: `1800` = 30 min).
-- `MAX_VIDEO_DURATION`: limite maximo para video em segundos (padrao: `1200` = 20 min).
+- `MAX_VIDEO_DURATION`: limite maximo para video em segundos (padrao: `7200` = 2h).
 - `SESSION_PATH`: pasta de sessao/autenticacao do Baileys.
-- `MAX_AUDIO_FILE_SIZE`: limite maximo de tamanho do audio em bytes (padrao: `20971520`).
-- `MAX_VIDEO_FILE_SIZE`: limite maximo de tamanho do video em bytes (padrao: `104857600`).
+- `MAX_AUDIO_FILE_SIZE`: limite maximo de tamanho do audio em bytes (padrao: `524288000` = 500MB).
+- `MAX_VIDEO_FILE_SIZE`: limite maximo de tamanho do video em bytes (padrao: `524288000` = 500MB).
 - `MAX_SEARCH_OPTIONS`: quantidade maxima de opcoes retornadas na busca (padrao: `8`).
 - `MAX_PLAYLIST_ITEMS`: quantidade maxima de faixas listadas ao escolher playlist (padrao: `10`).
 - `SELECTION_TIMEOUT_SECONDS`: tempo maximo para o usuario escolher uma opcao (padrao: `120`).
@@ -76,6 +84,9 @@ npm install
 - `AUDIO_BITRATE_KBPS`: bitrate final do MP3 (padrao: `160`).
 - `AUDIO_CHANNELS`: canais de audio (`1` mono, `2` stereo; padrao: `2`).
 - `AUDIO_SAMPLE_RATE`: sample rate final do audio (padrao: `44100`).
+- `VIDEO_MAX_HEIGHT`: altura maxima alvo na compactacao de video (padrao: `480`).
+- `VIDEO_CRF`: fator de qualidade do H.264 (`18` melhor/maior, `40` menor/mais comprimido; padrao: `30`).
+- `VIDEO_AUDIO_BITRATE_KBPS`: bitrate do audio em videos convertidos (padrao: `64`).
 - `YTDLP_CONCURRENT_FRAGMENTS`: downloads concorrentes no `yt-dlp` para acelerar (padrao: `6`).
 - `YTDLP_COOKIES_FILE` (opcional): caminho de `cookies.txt` para evitar bloqueio anti-bot do YouTube.
 - `YTDLP_COOKIES_FROM_BROWSER` (opcional): usa cookies direto do browser (`chrome`, `firefox`, etc).
@@ -110,7 +121,7 @@ pm2 save
 ## Comandos
 
 - `/play <nome/url>` (padrao: audio MP3)
-- `/video <nome/url>` (padrao: video 720p)
+- `/video <nome/url>` (padrao: video compacto)
 - `/cancel`
 - `/help`
 
@@ -121,7 +132,7 @@ pm2 save
 3. Responda com:
    - `1` para usar o formato padrao do comando.
    - `a1` para forcar audio MP3.
-   - `v1` para forcar video 720p.
+   - `v1` para forcar video compacto.
 4. Se escolher playlist, o bot retorna as musicas da playlist para nova selecao.
 
 ### Uso com quote (responder mensagem)
@@ -138,7 +149,7 @@ Sem repetir o conteudo. O bot usa automaticamente o texto da mensagem citada com
 - URL invalida
 - Musica nao encontrada
 - Audio acima do limite de 30 minutos
-- Video acima do limite de 20 minutos
+- Video acima do limite de 2 horas (configuravel)
 - Playlist nao encontrada ou sem faixas validas
 - Erro no yt-dlp
 - Arquivo acima do limite de tamanho
